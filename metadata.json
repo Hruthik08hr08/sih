@@ -1,0 +1,6 @@
+{
+  "name": "ORCA: Marine Ecosystem Reasoning Engine",
+  "description": "Interactive Marine Ecosystem Monitoring & Forecasting Dashboard powered by Collaborative Autonomous Agents",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
