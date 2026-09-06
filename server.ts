@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import { GoogleAuth } from "google-auth-library";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -10,6 +11,53 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Google Earth Engine credentials parser
+function getGeeCredentials(): Record<string, any> | null {
+  if (process.env.GEE_SERVICE_ACCOUNT_JSON) {
+    try {
+      return JSON.parse(process.env.GEE_SERVICE_ACCOUNT_JSON);
+    } catch (e) {
+      console.warn("Could not parse GEE_SERVICE_ACCOUNT_JSON:", e);
+    }
+  }
+  if (process.env.GEE_PRIVATE_KEY && process.env.GEE_SERVICE_ACCOUNT_EMAIL) {
+    return {
+      client_email: process.env.GEE_SERVICE_ACCOUNT_EMAIL,
+      private_key: process.env.GEE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      project_id: process.env.GEE_PROJECT_ID,
+    };
+  }
+  return null;
+}
+
+async function getEarthEngineAuth() {
+  const creds = getGeeCredentials();
+  if (!creds) return null;
+  try {
+    const auth = new GoogleAuth({
+      credentials: creds,
+      scopes: [
+        "https://www.googleapis.com/auth/earthengine",
+        "https://www.googleapis.com/auth/cloud-platform",
+      ],
+    });
+    const client = await auth.getClient();
+    const token = await client.getAccessToken();
+    return {
+      connected: true,
+      token: token.token,
+      projectId: creds.project_id || process.env.GEE_PROJECT_ID,
+      clientEmail: creds.client_email,
+    };
+  } catch (err: any) {
+    console.warn("GEE authentication error:", err?.message || err);
+    return {
+      connected: false,
+      error: err?.message || "Authentication failed",
+    };
+  }
+}
 
 interface EvaluateRequestBody {
   lat: number;
@@ -251,6 +299,8 @@ Generate a brief 3-agent live synthesis report in JSON with:
       }
     }
 
+    const geeCreds = getGeeCredentials();
+
     return res.json({
       status: "success",
       timestamp: new Date().toISOString(),
@@ -264,11 +314,34 @@ Generate a brief 3-agent live synthesis report in JSON with:
       recommendations,
       live_ai_enhanced: Boolean(liveGeminiReasoning),
       live_ai_data: liveGeminiReasoning,
+      gee_configured: Boolean(geeCreds),
     });
   } catch (error) {
     console.error("Evaluation error:", error);
     return res.status(500).json({ error: "Failed to evaluate marine telemetry" });
   }
+});
+
+// Google Earth Engine status endpoint
+app.get("/api/earthengine/status", async (_req, res) => {
+  const creds = getGeeCredentials();
+  if (!creds) {
+    return res.json({
+      connected: false,
+      configured: false,
+      message: "GEE credentials not configured. Add GEE_SERVICE_ACCOUNT_JSON in AI Studio Secrets.",
+    });
+  }
+  const auth = await getEarthEngineAuth();
+  return res.json({
+    connected: Boolean(auth?.connected),
+    configured: true,
+    projectId: auth?.projectId || creds.project_id || "default",
+    clientEmail: auth?.clientEmail || creds.client_email,
+    message: auth?.connected
+      ? "Google Earth Engine authenticated successfully."
+      : `Google Earth Engine authentication error: ${auth?.error}`,
+  });
 });
 
 // Health check endpoint

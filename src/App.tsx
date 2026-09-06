@@ -217,6 +217,7 @@ export default function App() {
           loading={loading}
           onRefresh={handleManualRefresh}
           liveAiEnhanced={data?.live_ai_enhanced}
+          geeConfigured={data?.gee_configured}
         />
 
         {/* Bento Grid Layout */}

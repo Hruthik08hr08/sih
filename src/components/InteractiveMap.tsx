@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Coordinates, PresetLocation } from "../types";
 import { PRESET_LOCATIONS } from "../data/presets";
-import { MapPin, Navigation, Compass, Layers, Crosshair, Search } from "lucide-react";
+import { MapPin, Navigation, Compass, Layers, Crosshair, Search, Globe } from "lucide-react";
 import L from "leaflet";
 
 interface InteractiveMapProps {
@@ -20,9 +20,12 @@ export default function InteractiveMap({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const darkLayerRef = useRef<L.TileLayer | null>(null);
+  const satelliteLayerRef = useRef<L.TileLayer | null>(null);
+
   const [customLat, setCustomLat] = useState(coordinates.lat.toString());
   const [customLon, setCustomLon] = useState(coordinates.lon.toString());
-  const [mapLayer, setMapLayer] = useState<"dark" | "ocean">("dark");
+  const [mapLayer, setMapLayer] = useState<"dark" | "satellite">("dark");
 
   useEffect(() => {
     setCustomLat(coordinates.lat.toFixed(4));
@@ -47,6 +50,17 @@ export default function InteractiveMap({
       maxZoom: 19,
       subdomains: "abcd",
     });
+
+    // Orbital High-Resolution Satellite Tiles
+    const satelliteTileLayer = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 19,
+      }
+    );
+
+    darkLayerRef.current = darkTileLayer;
+    satelliteLayerRef.current = satelliteTileLayer;
 
     darkTileLayer.addTo(map);
 
@@ -119,6 +133,20 @@ export default function InteractiveMap({
     }
   }, [coordinates]);
 
+  // Switch between Dark and Satellite tile layers
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    if (mapLayer === "satellite") {
+      if (darkLayerRef.current) map.removeLayer(darkLayerRef.current);
+      if (satelliteLayerRef.current) satelliteLayerRef.current.addTo(map);
+    } else {
+      if (satelliteLayerRef.current) map.removeLayer(satelliteLayerRef.current);
+      if (darkLayerRef.current) darkLayerRef.current.addTo(map);
+    }
+  }, [mapLayer]);
+
   const handlePresetClick = (preset: PresetLocation) => {
     onCoordinatesChange({ lat: preset.lat, lon: preset.lon }, preset.name);
     if (mapInstanceRef.current) {
@@ -156,12 +184,35 @@ export default function InteractiveMap({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[10px] font-mono text-cyan-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
-          <Crosshair size={12} className="text-cyan-400 animate-pulse" />
-          <span>
-            {coordinates.lat >= 0 ? `${coordinates.lat.toFixed(2)}°N` : `${Math.abs(coordinates.lat).toFixed(2)}°S`},{" "}
-            {coordinates.lon >= 0 ? `${coordinates.lon.toFixed(2)}°E` : `${Math.abs(coordinates.lon).toFixed(2)}°W`}
-          </span>
+        <div className="flex items-center gap-2">
+          {/* Layer Mode Toggle */}
+          <div className="flex items-center bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[10px] font-medium">
+            <button
+              onClick={() => setMapLayer("dark")}
+              className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                mapLayer === "dark" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Radar
+            </button>
+            <button
+              onClick={() => setMapLayer("satellite")}
+              className={`px-2 py-0.5 rounded transition-all cursor-pointer flex items-center gap-1 ${
+                mapLayer === "satellite" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Globe size={10} />
+              <span>Satellite</span>
+            </button>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-cyan-400 bg-slate-900 px-2.5 py-1 rounded border border-slate-800">
+            <Crosshair size={12} className="text-cyan-400 animate-pulse" />
+            <span>
+              {coordinates.lat >= 0 ? `${coordinates.lat.toFixed(2)}°N` : `${Math.abs(coordinates.lat).toFixed(2)}°S`},{" "}
+              {coordinates.lon >= 0 ? `${coordinates.lon.toFixed(2)}°E` : `${Math.abs(coordinates.lon).toFixed(2)}°W`}
+            </span>
+          </div>
         </div>
       </div>
 

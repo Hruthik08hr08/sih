@@ -8,6 +8,7 @@ interface HeaderProps {
   loading: boolean;
   onRefresh: () => void;
   liveAiEnhanced?: boolean;
+  geeConfigured?: boolean;
 }
 
 export default function Header({
@@ -16,6 +17,7 @@ export default function Header({
   loading,
   onRefresh,
   liveAiEnhanced,
+  geeConfigured,
 }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 bg-slate-900/50 border border-slate-800 p-4 rounded-xl shadow-2xl backdrop-blur-md">
@@ -55,11 +57,25 @@ export default function Header({
         </div>
 
         {/* Live Systems Badge */}
-        <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-          <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-            Systems Operational
-          </span>
+        <div className="flex items-center gap-2">
+          {geeConfigured && (
+            <div className="hidden md:flex items-center gap-1.5 bg-blue-500/10 px-2.5 py-1 rounded-full border border-blue-500/30 text-[10px] font-mono text-blue-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+              <span>GEE SATELLITE ON</span>
+            </div>
+          )}
+          {liveAiEnhanced && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-purple-500/10 px-2.5 py-1 rounded-full border border-purple-500/30 text-[10px] font-mono text-purple-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+              <span>GEMINI AI AGENTS</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
+            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+              ONLINE
+            </span>
+          </div>
         </div>
 
         {/* Evaluation Trigger Button */}

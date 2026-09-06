@@ -60,6 +60,7 @@ export interface EvaluationResponse {
   risk_level: "Healthy Status" | "Moderate Risk" | "Critical Risk";
   recommendations: Recommendation[];
   live_ai_enhanced?: boolean;
+  gee_configured?: boolean;
   live_ai_data?: {
     anomaly_analyst_note?: string;
     rag_specialist_note?: string;
