@@ -67,3 +67,18 @@ export interface EvaluationResponse {
     decision_synthesizer_note?: string;
   };
 }
+
+export interface ChatMessage {
+  id: string;
+  sender: "user" | "bot";
+  text: string;
+  timestamp: string;
+  sectorContext?: {
+    locationName: string;
+    coordinates: Coordinates;
+    sst?: number;
+    anomaly?: number;
+    risk?: string;
+  };
+}
+

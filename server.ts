@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { GoogleAuth } from "google-auth-library";
@@ -286,7 +287,7 @@ Generate a brief 3-agent live synthesis report in JSON with:
 3. "decision_synthesizer_note": 1 concise sentence with key directive`;
 
         const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.6-flash",
           contents: prompt,
           config: { responseMimeType: "application/json" },
         });
@@ -322,6 +323,109 @@ Generate a brief 3-agent live synthesis report in JSON with:
   }
 });
 
+// Interactive AI Chatbot Endpoint (Sector-aware & Predictive RAG)
+app.post("/api/chat", async (req, res) => {
+  try {
+    const {
+      message,
+      location_name,
+      coordinates,
+      telemetry,
+      health_score,
+      risk_level,
+    } = req.body;
+
+    if (!message || typeof message !== "string") {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    const locName = location_name || "Active Ocean Sector";
+    const lat = coordinates?.lat != null ? Number(coordinates.lat).toFixed(4) : "0.0000";
+    const lon = coordinates?.lon != null ? Number(coordinates.lon).toFixed(4) : "0.0000";
+    const sst = telemetry?.sst != null ? `${telemetry.sst}°C` : "28.5°C";
+    const anomaly = telemetry?.sst_anomaly != null ? `${telemetry.sst_anomaly >= 0 ? "+" : ""}${telemetry.sst_anomaly}°C` : "+1.2°C";
+    const ph = telemetry?.ph ?? 8.04;
+    const oxygen = telemetry?.oxygen ?? 5.2;
+    const salinity = telemetry?.salinity ?? 35.1;
+    const health = health_score ?? 68;
+    const risk = risk_level ?? "Moderate Risk";
+
+    const systemPrompt = `You are ORCA Marine Copilot, an elite oceanographic AI assistant specialized in real-time satellite Earth observation (Google Earth Engine), marine heatwave dynamics, coral reef physiology, and predictive environmental modeling.
+
+CURRENT SECTOR TELEMETRY (Live Observation for Selected Coordinate):
+- Sector Location: ${locName}
+- Coordinates: ${lat}°N, ${lon}°E
+- Sea Surface Temp (SST): ${sst} (Thermal Anomaly vs Baseline: ${anomaly})
+- Ocean pH: ${ph} (Acidification Baseline: 8.15; Critical: < 7.95)
+- Dissolved Oxygen: ${oxygen} mg/L (Hypoxia Threshold: < 5.0 mg/L)
+- Salinity: ${salinity} PSU
+- Coral Health Index (CHI): ${health} / 100
+- Risk Status: ${risk}
+
+RAG SCIENTIFIC CONTEXT & CITATIONS:
+1. NOAA Coral Reef Watch (CRW v3.1):
+   - Degree Heating Weeks (DHW) measures 12-week accumulated thermal stress.
+   - DHW >= 4.0 °C-weeks triggers Bleaching Alert Level 1 (significant bleaching likely).
+   - DHW >= 8.0 °C-weeks triggers Bleaching Alert Level 2 (severe multi-species mortality).
+2. IPCC AR6 WGII Chapter 3 (Ocean & Coastal Ecosystems):
+   - High sensitivity in fast-growing branching corals (Acropora, Pocillopora); massive Porites show higher thermal buffering.
+   - Decreased pH reduces aragonite saturation, impeding calcification and lowering larval settlement success by up to 60%.
+3. Future Projections & Environmental Trajectory:
+   - When asked to predict future trends (e.g. 15, 30, or 60 days ahead), estimate the progression of Degree Heating Weeks and mortality risk based on the current SST anomaly and regional ocean dynamics.
+4. Actionable Interventions:
+   - Shading structures, micro-bubble aeration skiffs, selective micro-fragmentation with thermotolerant Symbiodiniaceae clades, terrestrial sediment barriers, and emergency MPA restrictions.
+
+INSTRUCTIONS:
+- Directly answer the user's question using the live sector telemetry above.
+- If asked about the future, provide clear predictive timeframes (e.g. Next 14 days, 30 days) based on current heating rates.
+- Maintain a professional, articulate, and scientifically accurate tone with clear formatting (bullet points, bold text).`;
+
+    if (process.env.GEMINI_API_KEY) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const response = await ai.models.generateContent({
+          model: "gemini-3.6-flash",
+          contents: `${systemPrompt}\n\n[USER QUESTION]: ${message}`,
+        });
+
+        const reply = response.text || "Analysis synthesized based on active marine telemetry.";
+        return res.json({
+          reply,
+          sector: { locationName: locName, coordinates: { lat: Number(lat), lon: Number(lon) }, sst, anomaly, risk }
+        });
+      } catch (geminiErr: any) {
+        console.warn("Gemini chat error, using heuristic fallback:", geminiErr?.message);
+      }
+    }
+
+    // Heuristic fallback response
+    let fallbackReply = `**Analysis for ${locName} (${lat}°, ${lon}°)**:\n\n` +
+      `• **Current SST**: ${sst} (Thermal anomaly: ${anomaly})\n` +
+      `• **Biogeochemical Status**: pH ${ph} | Dissolved Oxygen ${oxygen} mg/L | Health Index: ${health}/100 (${risk})\n\n`;
+
+    if (message.toLowerCase().includes("predict") || message.toLowerCase().includes("future") || message.toLowerCase().includes("30 day")) {
+      fallbackReply += `🔮 **30-Day Environmental Outlook**:\n` +
+        `Under current heating trajectory (+${anomaly} anomaly), Degree Heating Weeks (DHW) are projected to accumulate by approximately 1.5 - 2.8 units over the next month. ` +
+        (parseFloat(anomaly) > 1.2
+          ? "This will escalate the sector into NOAA Bleaching Alert Level 2, creating severe physiological stress for sensitive branching Acropora corals."
+          : "Thermal stress remains elevated but within manageable adaptive thresholds if localized seasonal upwelling patterns remain stable.") +
+        `\n\n**Key Directive**: Deploy targeted micro-bubble aeration and enforce localized vessel transit restrictions.`;
+    } else {
+      fallbackReply += `According to NOAA Coral Reef Watch protocols, this sector is currently undergoing ${
+        parseFloat(anomaly) > 1.0 ? "acute thermal stress requiring active intervention" : "baseline monitoring conditions"
+      }. Secondary factors like ocean pH (${ph}) require mitigation against compounding coastal runoff.`;
+    }
+
+    return res.json({
+      reply: fallbackReply,
+      sector: { locationName: locName, coordinates: { lat: Number(lat), lon: Number(lon) }, sst, anomaly, risk }
+    });
+  } catch (error) {
+    console.error("Chat API error:", error);
+    return res.status(500).json({ error: "Failed to process chat query" });
+  }
+});
+
 // Google Earth Engine status endpoint
 app.get("/api/earthengine/status", async (_req, res) => {
   const creds = getGeeCredentials();
@@ -342,6 +446,17 @@ app.get("/api/earthengine/status", async (_req, res) => {
       ? "Google Earth Engine authenticated successfully."
       : `Google Earth Engine authentication error: ${auth?.error}`,
   });
+});
+
+// Download technical documentation PDF
+app.get("/api/download-documentation", (_req, res) => {
+  const pdfPath = path.join(process.cwd(), "public", "ORCA_Technical_Documentation.pdf");
+  if (fs.existsSync(pdfPath)) {
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", 'attachment; filename="ORCA_Technical_Documentation.pdf"');
+    return res.sendFile(pdfPath);
+  }
+  return res.status(404).json({ error: "Documentation PDF not found" });
 });
 
 // Health check endpoint

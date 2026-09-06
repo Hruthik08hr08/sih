@@ -6,6 +6,7 @@ import ForecastChart from "./components/ForecastChart";
 import AgentConsensusConsole from "./components/AgentConsensusConsole";
 import HealthIndexGauge from "./components/HealthIndexGauge";
 import ActionableRecommendations from "./components/ActionableRecommendations";
+import MarineChatbot from "./components/MarineChatbot";
 import { Coordinates, EvaluationResponse } from "./types";
 import { PRESET_LOCATIONS } from "./data/presets";
 import { AlertCircle, Waves, Sparkles } from "lucide-react";
@@ -271,6 +272,15 @@ export default function App() {
             </div>
           </div>
         </main>
+
+        {/* Global AI Marine Copilot Chatbot */}
+        <MarineChatbot
+          locationName={locationName}
+          coordinates={coordinates}
+          telemetry={data?.telemetry || null}
+          healthScore={data?.health_score}
+          riskLevel={data?.risk_level}
+        />
       </div>
     </div>
   );
