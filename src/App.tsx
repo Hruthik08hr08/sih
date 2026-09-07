@@ -84,6 +84,8 @@ export default function App() {
           oxygen,
           depth_m: 42,
           turbidity_ntu: 1.4,
+          chlorophyll_a: sstAnomaly > 1.2 ? 0.12 : 0.28,
+          coral_symbiont_density: sstAnomaly > 1.2 ? "Bleached / Depleted" : "Healthy Symbiont Density",
         },
         forecast,
         agent_logs: [
@@ -258,6 +260,7 @@ export default function App() {
                   score={data?.health_score || 0}
                   riskLevel={data?.risk_level || "Healthy Status"}
                   loading={loading}
+                  telemetry={data?.telemetry || null}
                 />
               </div>
 

@@ -22,6 +22,8 @@ export interface OceanTelemetry {
   oxygen: number; // Dissolved Oxygen mg/L
   depth_m: number;
   turbidity_ntu?: number;
+  chlorophyll_a: number; // Chlorophyll-a / Coral algal biomass concentration in mg/m³
+  coral_symbiont_density?: string; // e.g. "Optimal Symbiont", "Bleaching Depletion", "Eutrophic Bloom"
 }
 
 export interface ForecastPoint {

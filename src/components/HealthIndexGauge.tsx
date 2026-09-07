@@ -1,13 +1,15 @@
 import React from "react";
-import { ShieldCheck, ShieldAlert, AlertOctagon, HeartPulse, Info } from "lucide-react";
+import { ShieldCheck, ShieldAlert, AlertOctagon } from "lucide-react";
+import { OceanTelemetry } from "../types";
 
 interface HealthIndexGaugeProps {
   score: number;
   riskLevel: "Healthy Status" | "Moderate Risk" | "Critical Risk";
   loading: boolean;
+  telemetry?: OceanTelemetry | null;
 }
 
-export default function HealthIndexGauge({ score, riskLevel, loading }: HealthIndexGaugeProps) {
+export default function HealthIndexGauge({ score, riskLevel, loading, telemetry }: HealthIndexGaugeProps) {
   // Circular gauge math (radius 48, circumference ~ 301.6)
   const radius = 46;
   const circumference = 2 * Math.PI * radius;
@@ -105,7 +107,7 @@ export default function HealthIndexGauge({ score, riskLevel, loading }: HealthIn
           <span>{riskLevel}</span>
         </div>
 
-        <div className="w-full grid grid-cols-3 gap-1 text-[9px] font-mono text-slate-400 pt-2 border-t border-slate-800 text-center">
+        <div className="w-full grid grid-cols-4 gap-1 text-[9px] font-mono text-slate-400 pt-2 border-t border-slate-800 text-center">
           <div className="bg-slate-950 p-1 rounded border border-slate-900">
             <span className="block text-slate-500">Thermal</span>
             <span className={isCritical ? "text-rose-400 font-bold" : "text-slate-300"}>
@@ -116,6 +118,20 @@ export default function HealthIndexGauge({ score, riskLevel, loading }: HealthIn
             <span className="block text-slate-500">pH Buffer</span>
             <span className={isCritical ? "text-amber-400 font-bold" : "text-slate-300"}>
               {isCritical ? "Stressed" : "Stable"}
+            </span>
+          </div>
+          <div className="bg-slate-950 p-1 rounded border border-slate-900">
+            <span className="block text-slate-500">Chl-a</span>
+            <span
+              className={
+                telemetry?.chlorophyll_a && telemetry.chlorophyll_a < 0.15
+                  ? "text-rose-400 font-bold"
+                  : telemetry?.chlorophyll_a && telemetry.chlorophyll_a > 1.2
+                  ? "text-amber-400 font-bold"
+                  : "text-emerald-400"
+              }
+            >
+              {telemetry?.chlorophyll_a ? `${telemetry.chlorophyll_a}` : "0.28"}
             </span>
           </div>
           <div className="bg-slate-950 p-1 rounded border border-slate-900">

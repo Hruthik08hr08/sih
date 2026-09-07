@@ -1,6 +1,6 @@
 import React from "react";
 import { OceanTelemetry } from "../types";
-import { Thermometer, Droplet, Wind, Activity, TrendingUp, TrendingDown } from "lucide-react";
+import { Thermometer, Droplet, Wind, Activity, TrendingUp, TrendingDown, Sprout } from "lucide-react";
 
 interface TelemetryGaugesProps {
   telemetry: OceanTelemetry | null;
@@ -10,8 +10,8 @@ interface TelemetryGaugesProps {
 export default function TelemetryGauges({ telemetry, loading }: TelemetryGaugesProps) {
   if (!telemetry) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {[1, 2, 3, 4, 5].map((i) => (
           <div key={i} className="h-28 bg-slate-900/60 rounded-xl border border-slate-800 animate-pulse" />
         ))}
       </div>
@@ -28,6 +28,12 @@ export default function TelemetryGauges({ telemetry, loading }: TelemetryGaugesP
   const isHypoxic = telemetry.oxygen < 4.8;
   const isHypoxicWarning = telemetry.oxygen < 5.6;
 
+  // Chlorophyll-a / Coral Zooxanthellae Concentration
+  const chlorophyll = telemetry.chlorophyll_a ?? 0.28;
+  const isChlDepleted = chlorophyll < 0.15; // Bleaching loss of zooxanthellae
+  const isChlBloom = chlorophyll > 1.2; // Eutrophic / Macroalgal bloom
+  const chlProgress = Math.min(100, Math.max(8, (chlorophyll / 2.0) * 100));
+
   // Percentage calculations for progress bars
   const sstProgress = Math.min(100, Math.max(10, ((telemetry.sst - 15) / (34 - 15)) * 100));
   const phProgress = Math.min(100, Math.max(10, ((telemetry.ph - 7.5) / (8.4 - 7.5)) * 100));
@@ -35,7 +41,7 @@ export default function TelemetryGauges({ telemetry, loading }: TelemetryGaugesP
   const oxygenProgress = Math.min(100, Math.max(10, ((telemetry.oxygen - 2) / (8.5 - 2)) * 100));
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {/* 1. Sea Surface Temperature */}
       <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between group hover:border-slate-700 transition-all">
         <div className="flex items-center justify-between mb-1">
@@ -109,7 +115,66 @@ export default function TelemetryGauges({ telemetry, loading }: TelemetryGaugesP
         </div>
       </div>
 
-      {/* 3. Salinity */}
+      {/* 3. Chlorophyll-a / Coral Algae Concentration */}
+      <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between group hover:border-slate-700 transition-all">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider" title="Chlorophyll-a & Coral Algae (Zooxanthellae) Concentration">
+            Chlorophyll-a
+          </p>
+          <div className="p-1 rounded bg-slate-950 text-emerald-400">
+            <Sprout size={14} />
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-baseline gap-1">
+            <span
+              className={`text-2xl font-bold font-mono ${
+                isChlDepleted
+                  ? "text-rose-400"
+                  : isChlBloom
+                  ? "text-amber-400"
+                  : "text-emerald-400"
+              }`}
+            >
+              {chlorophyll.toFixed(2)}
+            </span>
+            <span className="text-xs text-slate-500 font-mono">mg/m³</span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mt-2.5 h-1 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className={`h-full ${
+                isChlDepleted
+                  ? "bg-rose-500"
+                  : isChlBloom
+                  ? "bg-amber-500"
+                  : "bg-emerald-500"
+              }`}
+              style={{ width: `${chlProgress}%` }}
+            />
+          </div>
+
+          <div className="mt-2 pt-1.5 border-t border-slate-800/80 flex items-center justify-between text-[10px]">
+            <span className="text-slate-500">Coral Algae</span>
+            <span
+              className={`font-semibold truncate max-w-[85px] ${
+                isChlDepleted
+                  ? "text-rose-400"
+                  : isChlBloom
+                  ? "text-amber-400"
+                  : "text-emerald-400"
+              }`}
+              title={telemetry.coral_symbiont_density || (isChlDepleted ? "Bleached/Expelled Zooxanthellae" : isChlBloom ? "Macroalgal Bloom" : "Healthy Symbiont Density")}
+            >
+              {isChlDepleted ? "Bleached" : isChlBloom ? "Bloom" : "Healthy"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Salinity */}
       <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between group hover:border-slate-700 transition-all">
         <div className="flex items-center justify-between mb-1">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
@@ -140,7 +205,7 @@ export default function TelemetryGauges({ telemetry, loading }: TelemetryGaugesP
         </div>
       </div>
 
-      {/* 4. Dissolved Oxygen */}
+      {/* 5. Dissolved Oxygen */}
       <div className="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between group hover:border-slate-700 transition-all">
         <div className="flex items-center justify-between mb-1">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">

@@ -271,10 +271,10 @@ export default function InteractiveMap({
         </div>
       </div>
 
-      {/* Bathymetry Scan Status Bar */}
+      {/* Bathymetry & Ocean Color Status Bar */}
       <div className="bg-slate-950 p-2.5 px-3.5 border-t border-slate-800 flex justify-between items-center text-[10px] font-bold">
-        <span className="text-slate-500 uppercase tracking-wider">Bathymetry Scan</span>
-        <span className="text-cyan-400 font-mono">4,200m depth • Sector Online</span>
+        <span className="text-slate-500 uppercase tracking-wider">Bathymetry & Ocean Color</span>
+        <span className="text-cyan-400 font-mono">Copernicus Sentinel-3 • Chl-a Radiometry</span>
       </div>
 
       {/* Bottom Manual Coordinates Form */}

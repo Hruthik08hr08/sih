@@ -92,6 +92,28 @@ function generateOceanTelemetry(lat: number, lon: number) {
   const depths = [18, 35, 62, 110, 240, 580];
   const depthM = depths[Math.floor(Math.random() * depths.length)];
   
+  // Chlorophyll-a (in mg/m³) - measures coral symbiotic microalgae (zooxanthellae) density & water-column phytoplankton
+  let chlBase = 0.28 + Math.sin(lon * 0.08) * 0.08 + (Math.random() - 0.5) * 0.06;
+  if (sstAnomaly > 1.4) {
+    // Bleaching scenario: Zooxanthellae expelled, chlorophyll density depleted
+    chlBase = 0.10 + Math.random() * 0.06;
+  } else if (Math.abs(lat) < 5) {
+    // Equatorial upwelling / nutrient influx
+    chlBase += 0.12;
+  }
+  const chlorophyll_a = Number(Math.max(0.06, Math.min(4.8, chlBase)).toFixed(2));
+  
+  let coral_symbiont_density = "Optimal Density";
+  if (chlorophyll_a < 0.15) {
+    coral_symbiont_density = "Bleaching Depleted";
+  } else if (chlorophyll_a > 1.2) {
+    coral_symbiont_density = "Eutrophic Bloom";
+  } else if (chlorophyll_a >= 0.15 && chlorophyll_a <= 0.45) {
+    coral_symbiont_density = "Healthy Symbiont";
+  } else {
+    coral_symbiont_density = "Moderate Biomass";
+  }
+
   return {
     sst,
     sst_anomaly: sstAnomaly,
@@ -101,6 +123,8 @@ function generateOceanTelemetry(lat: number, lon: number) {
     oxygen,
     depth_m: depthM,
     turbidity_ntu: Number((0.8 + Math.random() * 2.6).toFixed(2)),
+    chlorophyll_a,
+    coral_symbiont_density,
   };
 }
 
@@ -188,21 +212,21 @@ function buildAgentReasoning(
       role: "Telemetry & Multispectral Ingestion",
       timestamp: "T+0.14s",
       type: "telemetry" as const,
-      message: `Ingested multispectral satellite & Argo float feed for ${locStr}. SST is ${sst}°C (Anomaly: ${sst_anomaly >= 0 ? "+" : ""}${sst_anomaly}°C against decadal baseline).`,
+      message: `Ingested multispectral satellite & Argo float feed for ${locStr}. SST is ${sst}°C (Anomaly: ${sst_anomaly >= 0 ? "+" : ""}${sst_anomaly}°C). Sentinel-3 Chlorophyll-a: ${telemetry.chlorophyll_a} mg/m³ (${telemetry.coral_symbiont_density}).`,
     },
     {
       agent: "Agent 1: Anomaly Analyst",
       role: "Telemetry & Multispectral Ingestion",
       timestamp: "T+0.42s",
       type: sst_anomaly > 0.8 || ph < 7.95 ? ("alert" as const) : ("info" as const),
-      message: `Biogeochemical metrics: Salinity ${salinity} PSU, Ocean pH ${ph} (${acidRisk} acidification rate), Dissolved Oxygen ${oxygen} mg/L (${hypoxiaRisk}). ML projections show persistent thermal loading.`,
+      message: `Biogeochemical metrics: Salinity ${salinity} PSU, Ocean pH ${ph} (${acidRisk} acidification rate), Dissolved Oxygen ${oxygen} mg/L (${hypoxiaRisk}). Symbiont pigment density is ${telemetry.coral_symbiont_density}.`,
     },
     {
       agent: "Agent 2: RAG Specialist",
       role: "Marine Biology & IPCC/NOAA VectorDB",
       timestamp: "T+0.85s",
       type: "rag" as const,
-      message: `VectorDB query against NOAA Coral Reef Watch (CRW) & GBRMPA biogeochemical thresholds. Taxa analyzed: Scleractinia (Staghorn/Brain corals) & seagrass meadows.`,
+      message: `VectorDB query against NOAA Coral Reef Watch (CRW) & GBRMPA biogeochemical thresholds. Taxa analyzed: Scleractinia zooxanthellae endosymbionts & benthic calcifiers.`,
     },
     {
       agent: "Agent 2: RAG Specialist",
@@ -347,6 +371,8 @@ app.post("/api/chat", async (req, res) => {
     const ph = telemetry?.ph ?? 8.04;
     const oxygen = telemetry?.oxygen ?? 5.2;
     const salinity = telemetry?.salinity ?? 35.1;
+    const chlorophyll = telemetry?.chlorophyll_a ?? 0.28;
+    const symbiontStatus = telemetry?.coral_symbiont_density ?? "Healthy Symbiont Density";
     const health = health_score ?? 68;
     const risk = risk_level ?? "Moderate Risk";
 
@@ -359,6 +385,8 @@ CURRENT SECTOR TELEMETRY (Live Observation for Selected Coordinate):
 - Ocean pH: ${ph} (Acidification Baseline: 8.15; Critical: < 7.95)
 - Dissolved Oxygen: ${oxygen} mg/L (Hypoxia Threshold: < 5.0 mg/L)
 - Salinity: ${salinity} PSU
+- Sentinel-3 Ocean Color Chlorophyll-a / Algal Concentration: ${chlorophyll} mg/m³ (${symbiontStatus})
+  (Note: In oligotrophic coral reefs, optimal baseline chlorophyll-a is 0.15 - 0.45 mg/m³. Severe heat stress causes zooxanthellae expulsion resulting in chlorophyll depletion < 0.15 mg/m³; conversely, eutrophication or agricultural runoff causes harmful algal blooms > 1.2 mg/m³).
 - Coral Health Index (CHI): ${health} / 100
 - Risk Status: ${risk}
 
@@ -401,9 +429,19 @@ INSTRUCTIONS:
     // Heuristic fallback response
     let fallbackReply = `**Analysis for ${locName} (${lat}°, ${lon}°)**:\n\n` +
       `• **Current SST**: ${sst} (Thermal anomaly: ${anomaly})\n` +
+      `• **Chlorophyll-a / Coral Biomass**: ${chlorophyll} mg/m³ (${symbiontStatus})\n` +
       `• **Biogeochemical Status**: pH ${ph} | Dissolved Oxygen ${oxygen} mg/L | Health Index: ${health}/100 (${risk})\n\n`;
 
-    if (message.toLowerCase().includes("predict") || message.toLowerCase().includes("future") || message.toLowerCase().includes("30 day")) {
+    if (message.toLowerCase().includes("chlorophyl") || message.toLowerCase().includes("algal") || message.toLowerCase().includes("symbiont") || message.toLowerCase().includes("zooxanthellae")) {
+      fallbackReply += `🌿 **Chlorophyll-a & Coral Algal Concentration Assessment**:\n` +
+        `• **Observed Concentration**: **${chlorophyll} mg/m³** (Derived from Copernicus Sentinel-3 OLCI multispectral radiometry).\n` +
+        `• **Coral Symbiont Status**: **${symbiontStatus}**.\n` +
+        (chlorophyll < 0.15
+          ? `• **Ecological Diagnosis**: Zooxanthellae microalgal density is depleted due to heat-induced photosynthetic photo-inhibition and expulsion (early/moderate bleaching stage). The coral host is losing critical autotrophic nutrition.\n• **Remediation**: Deploy benthic shading nets and micro-fragmented thermotolerant Symbiodiniaceae (Clade D/Durusdinium) seeding.`
+          : chlorophyll > 1.2
+          ? `• **Ecological Diagnosis**: Elevated water column chlorophyll indicates a localized phytoplankton/macroalgae bloom, frequently triggered by coastal agricultural runoff and excessive nitrates/phosphates. Macroalgae may outcompete coral larvae.\n• **Remediation**: Establish coastal runoff sediment barriers and limit nearby nutrient discharges.`
+          : `• **Ecological Diagnosis**: Chlorophyll concentration sits in the optimal oligotrophic range (0.15 - 0.45 mg/m³), indicating healthy endosymbiotic zooxanthellae density in the coral gastrodermis without eutrophic bloom disturbance.`);
+    } else if (message.toLowerCase().includes("predict") || message.toLowerCase().includes("future") || message.toLowerCase().includes("30 day")) {
       fallbackReply += `🔮 **30-Day Environmental Outlook**:\n` +
         `Under current heating trajectory (+${anomaly} anomaly), Degree Heating Weeks (DHW) are projected to accumulate by approximately 1.5 - 2.8 units over the next month. ` +
         (parseFloat(anomaly) > 1.2

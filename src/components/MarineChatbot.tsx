@@ -35,6 +35,7 @@ interface ChatMessage {
 }
 
 const QUICK_PROMPTS = [
+  "🌿 What is the chlorophyll-a & coral algal concentration here?",
   "🔮 Predict future 30-day bleaching risk for this sector",
   "🌡️ Explain current thermal anomaly & GEE satellite data",
   "🛡️ What urgent interventions can save this reef?",
@@ -257,6 +258,9 @@ export default function MarineChatbot({
               </span>
               <span>
                 pH: <strong className="text-purple-400">{telemetry?.ph ?? "--"}</strong>
+              </span>
+              <span className="hidden sm:inline">
+                Chl-a: <strong className="text-emerald-400">{telemetry?.chlorophyll_a ?? "--"} mg/m³</strong>
               </span>
             </div>
             <span
